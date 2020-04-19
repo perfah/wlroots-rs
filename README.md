@@ -2,7 +2,7 @@
 
 A fork intended for standalone use of the wlroots-sys subcrate (that generates "raw" Rust bindings for [wlroots](https://github.com/swaywm/wlroots) via bindgen). This effectively means that progress and development is contained only within the [wlroots-sys](https://github.com/perfah/wlroots-rs/tree/master/wlroots-sys) directory. Note that this is not an attempt to revive wlroots-rs - hence the largely untouched repository root. 
 
-The motivation for this fork is the benefit of being able to write Wayland-compositors based on wlroots in Rust more easily. 
+The motivation for this fork is the benefit of being able to write Wayland-compositors based on wlroots in Rust more easily (without relying on outdated code).
 
 ## Usage
 
@@ -36,8 +36,5 @@ The motivation for this fork is the benefit of being able to write Wayland-compo
     - `systemd` - support for logind
     - `elogind` - support for logind without systemd installed
     - `libcap` - capabilities
-
-## Credit
-
 
 
