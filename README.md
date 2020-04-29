@@ -1,6 +1,6 @@
-# wlroots_sys
+# wlroots-sys
 
-For devops course, see the [reflection document]()
+( **For devops course, see the [reflection document](https://github.com/perfah/wlroots-rs/wiki/devops-course:-Reflection-&-Contributions)** )
 
 A fork intended for standalone use of the wlroots-sys subcrate (that generates "raw" Rust bindings for [wlroots](https://github.com/swaywm/wlroots) via bindgen). This effectively means that progress and development is contained only within the [wlroots-sys](https://github.com/perfah/wlroots-rs/tree/master/wlroots-sys) directory. Note that this is not an attempt to revive wlroots-rs - hence the largely untouched repository root. 
 
