@@ -6,6 +6,7 @@ pub extern crate wayland_commons;
 pub extern crate wayland_server;
 pub extern crate wayland_client;
 pub extern crate wayland_sys;
+pub extern crate wayland_protocols;
 
 pub use wayland_sys::{
     *, gid_t,
@@ -27,7 +28,7 @@ mod generated {
         #![allow(unused)]
 
         macro_rules! expose_protocol {
-            ($protocol_name:ident, $($client_deps:tt)*) => {
+            ($protocol_name:ident, {$($client_deps:path),*}, {$($server_deps:path),*}) => {
                 pub mod $protocol_name{
                     pub mod client{
                         // Common client dependencies:
@@ -40,8 +41,10 @@ mod generated {
                         use wayland_client::{Main, AnonymousObject, protocol::wl_output};
                         use wayland_sys as sys;
                         use wayland_client::{ProxyMap, Proxy};
-
-                        $($client_deps)*
+                        
+                        $(
+                            use $client_deps;
+                        )*
 
                         include!(concat!(env!("OUT_DIR"), "/", stringify!($protocol_name), "_client_api.rs"));
                     }
@@ -53,15 +56,15 @@ mod generated {
                         use wayland_commons::smallvec;
                         use wayland_server::*;
                         use wayland_server::Main;
-                        use wayland_server::protocol::wl_surface;
+                        use wayland_server::protocol::{wl_surface, wl_output};
                         use wayland_server::protocol::wl_seat as wl_seat;
-                        use wayland_client::{AnonymousObject, protocol::wl_output};
+                        use wayland_client::{AnonymousObject};
                         use wayland_sys as sys;
                         use wayland_client::{ProxyMap, Proxy};
-                        //use generated::protocols::gamma_control::server::zwlr_gamma_control_v1::ZwlrGammaControlV1;
-                        //use generated::protocols::layer_shell::server::zwlr_layer_shell_v1::Layer;
 
-                        //$additional_deps;
+                        $(
+                            use $server_deps;
+                        )*
 
                         include!(concat!(env!("OUT_DIR"), "/", stringify!($protocol_name), "_server_api.rs"));
                     }
@@ -69,21 +72,39 @@ mod generated {
             };
         }
 
-        //expose_protocol!(gamma_control, {});
-        //expose_protocol!(data_control, {});
-        //expose_protocol!(export_dmabuf, {});
-        //expose_protocol!(foreign_toplevel_management, {});
-        //expose_protocol!(gtk_primary_selection, {});
-        //expose_protocol!(idle, {});
-        //expose_protocol!(input_inhibitor, {});
-        //expose_protocol!(input_method, {});
-        //expose_protocol!(layer_shell, {});
-        //expose_protocol!(output_management, {});
-        //expose_protocol!(output_power_management, {});
-        //expose_protocol!(screencopy, {});
-        //expose_protocol!(server_decoration, {});
-        //expose_protocol!(virtual_keyboard, {});
-        //expose_protocol!(virtual_pointer, {});
+        pub use wayland_protocols::wlr::unstable::gamma_control::v1 as gamma_control;
+        pub use wayland_protocols::wlr::unstable::data_control::v1 as data_control;
+        pub use wayland_protocols::wlr::unstable::export_dmabuf::v1 as export_dmabuf;
+        pub use wayland_protocols::wlr::unstable::foreign_toplevel::v1 as foreign_toplevel;
+        expose_protocol!(gtk_primary_selection, {}, {});
+        expose_protocol!(idle, {}, {});
+        pub use wayland_protocols::wlr::unstable::input_inhibitor;
+        expose_protocol!(
+            input_method,
+            {
+                wayland_protocols::unstable::text_input::v3::client::zwp_text_input_v3,
+                wayland_server::protocol::wl_keyboard
+            },
+            {
+                wayland_protocols::unstable::text_input::v3::server::zwp_text_input_v3,
+                wayland_server::protocol::wl_keyboard
+            }
+        );
+        pub use wayland_protocols::wlr::unstable::layer_shell::v1 as layer_shell;
+        expose_protocol!(output_management, {}, {});
+        expose_protocol!(output_power_management, {}, {});
+        pub use wayland_protocols::wlr::unstable::screencopy::v1 as screencopy;
+        expose_protocol!(server_decoration, {}, {});
+        expose_protocol!(virtual_keyboard, {}, {});
+        expose_protocol!(
+            virtual_pointer,
+            {
+                wayland_client::protocol::wl_pointer
+            },
+            {
+                wayland_server::protocol::wl_pointer
+            }
+        );
     }
 }
 
