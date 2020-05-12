@@ -56,11 +56,9 @@ fn main() {
         .blacklist_type("FP_SUBNORMAL")
         .blacklist_type("FP_NORMAL");
 
-    if cfg!(feature = "pixman") || cfg!(feature = "unstable") {
         builder = builder.whitelist_function(r"^_?pixman_.*$");
         builder = builder.clang_arg("-I/usr/include/pixman-1");
         builder = builder.clang_arg("-DWLR_USE_PIXMAN");
-    }
 
     if cfg!(feature = "unstable") {
         builder = builder.clang_arg("-DWLR_USE_UNSTABLE");
@@ -118,9 +116,6 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=input");
     println!("cargo:rustc-link-lib=dylib=udev");
     println!("cargo:rustc-link-lib=dylib=dbus-1");
-    #[cfg(feature = "pixman")]
-    println!("cargo:rustc-link-lib=dylib=pixman-1");
-    #[cfg(feature = "unstable")]
     println!("cargo:rustc-link-lib=dylib=pixman-1");
 
         link_optional_libs();
