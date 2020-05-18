@@ -5,10 +5,6 @@ extern crate meson;
 extern crate pkg_config;
 extern crate wayland_scanner;
 
-#[cfg(feature = "static")]
-extern crate expat_sys;
-
-
 use std::path::{Path, PathBuf};
 use std::process::{Command, exit};
 use std::{env, fs, io};
@@ -207,8 +203,7 @@ fn package_error_static() {
         println!("WRONG version of cmake or not installed on system.");
 
         println!("\nInstallation instructions, install with packet manager or if available");
-        println!("STATIC installation cannot rely on Cargo cmake ");
-        exit(2);
+        println!("STATIC installation cannot usually rely on Cargo cmake ");
     }
 
     if check_version("clang","--version","6.0",true)
@@ -227,9 +222,7 @@ fn package_error_static() {
         println!("pip3 found");
     } else {
         println!("WRONG version of pip3 or not installed on system.");
-
         println!("\nInstallation instructions, install with packet manager");
-        exit(2);
     }
 
     if check_version("xml2-config","--version","0.0",true)
@@ -249,7 +242,6 @@ fn package_error_static() {
         println!("WRONG version of graphviz or not installed on system.");
 
         println!("\nInstallation instructions, install with packet manager");
-        exit(2);
     }
 
 
@@ -308,9 +300,6 @@ fn check_version(command: &str, arg: &str, min_version: &str, first_check: bool)
             println!("if it is installed, try export PKG_CONFIG_PATH=/usr/lib/PATH_TO_PC/lib/:$PKG_CONFIG_PATH where .pc file is located");
         }
     }
-    //let mut minvec = Vec::new();
-    //let mut command_vector = Vec::new();
-
     let minvec = min_version
         .split(|c| c == ' ' || c == '.')
         .filter_map(|s| s.parse::<i32>().ok())
@@ -354,18 +343,16 @@ fn check_version(command: &str, arg: &str, min_version: &str, first_check: bool)
                 command_vector.push(0);
             }
 
-            //compares version vector and return true if larger
             let mut counter_compare = 1;
             for (comval, minval) in command_vector.iter().zip(minvec.iter()) {
                 if counter_compare < minvec.len() {
                     if comval > minval {
-                        println!("local installation of {:?} {:?} was found, >= version {:?} was not found located in pkg-config", command, command_vector, min_version);
+                        println!("local installation of {:?} {:?} >= version {:?} was found", command, command_vector, min_version);
                         return true;
                     }
                     if comval < minval {
                         return false;
                     }
-                    //else equal continue....
                 } else {
                     return if comval >= minval { true } else { false };
                 }
@@ -430,18 +417,21 @@ fn is_in_path(path_dir: String, command: &str) -> bool {
     match env::var_os(path_dir) {
         Some(paths) => {
             for path in env::split_paths(&paths) {
-                for entry in fs::read_dir(path).expect("Error reading directory") {
-                    let entry = entry.expect("Could not read entry in directory");
-                    let file_name = entry
-                        .path()
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                        .into_owned();
+                let path_hidden = path.to_str().expect("Error reading directory");
+                if !path_hidden.contains("/.") {
+                    for entry in fs::read_dir(path).expect("Error reading directory") {
+                        let entry = entry.expect("Could not read entry in directory");
+                        let file_name = entry
+                            .path()
+                            .file_name()
+                            .unwrap()
+                            .to_string_lossy()
+                            .into_owned();
 
-                    if file_name == command.to_string() {
-                        println!("var {:?} was found in {:?}", command, entry);
-                        return true;
+                        if file_name == command.to_string() {
+                            println!("var {:?} was found in {:?}", command, entry);
+                            return true;
+                        }
                     }
                 }
             }
@@ -459,7 +449,7 @@ fn meson() {}
 fn meson() {
     let build_path =
         PathBuf::from(env::var("OUT_DIR").expect("Could not get OUT_DIR env variable"));
-    build_path.join("build");
+    let _build_path = build_path.join("build");
     let build_path_str = build_path
         .to_str()
         .expect("Could not turn build path into a string");
@@ -470,40 +460,17 @@ fn meson() {
     if cfg!(feature = "static") {
         println!("cargo:rustc-link-search=native={}/util/", build_path_str);
         println!("cargo:rustc-link-search=native={}/types/", build_path_str);
-        println!(
-            "cargo:rustc-link-search=native={}/protocol/",
-            build_path_str
-        );
+        println!("cargo:rustc-link-search=native={}/protocol/",build_path_str);
         println!("cargo:rustc-link-search=native={}/xcursor/", build_path_str);
-        println!(
-            "cargo:rustc-link-search=native={}/xwayland/",
-            build_path_str
-        );
+        println!("cargo:rustc-link-search=native={}/xwayland/",build_path_str);
         println!("cargo:rustc-link-search=native={}/backend/", build_path_str);
-        println!(
-            "cargo:rustc-link-search=native={}/backend/x11",
-            build_path_str
-        );
+        println!("cargo:rustc-link-search=native={}/backend/x11",build_path_str);
         println!("cargo:rustc-link-search=native={}/render/", build_path_str);
 
-        //below not used in wlroots 0.10.0 only in older versions
-        //println!("cargo:rustc-link-lib=static=wlr_util");
-        //println!("cargo:rustc-link-lib=static=wlr_types");
-        //println!("cargo:rustc-link-lib=static=wlr_xcursor");
-        //println!("cargo:rustc-link-lib=static=wlr_xwayland");
-        //println!("cargo:rustc-link-lib=static=wlr_backend");
-        //println!("cargo:rustc-link-lib=static=wlr_backend_x11");
-        //println!("cargo:rustc-link-lib=static=wlr_render");
-        //println!("cargo:rustc-link-lib=static=wl_protos");
+        println!("cargo:rustc-link-lib=static=wlroots");
     }
 
     package_error_static();
-
-    if Path::new("wayland").exists() {
-        meson::build("wayland", build_path_str);
-    } else {
-        panic!("The `wayland` submodule does not exist");
-    }
 
     if Path::new("wlroots").exists() {
         meson::build("wlroots", build_path_str);

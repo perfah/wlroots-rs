@@ -29,7 +29,7 @@ wayland-protocols = { version = "0.26.3", features = ["client", "server", "unsta
 
 [features]
 default = ["libcap", "systemd", "elogind", "xwayland", "x11_backend"]
-static = ["meson","expat-sys"]
+static = ["meson"]
 libcap = []
 systemd = []
 elogind = []
