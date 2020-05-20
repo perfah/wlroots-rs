@@ -25,11 +25,11 @@ wayland-commons = "0.25.*"
 wayland-server = "0.25.*"
 wayland-client = "0.25.*"
 wayland-sys = { version = "0.25.*", features = ["dlopen", "server"] }
+wayland-protocols = { version = "0.26.3", features = ["client", "server", "unstable_protocols"] }
 
 [features]
 default = ["libcap", "systemd", "elogind", "xwayland", "x11_backend"]
-static = ["meson","expat-sys"]
-pixman = []
+static = ["meson"]
 libcap = []
 systemd = []
 elogind = []
