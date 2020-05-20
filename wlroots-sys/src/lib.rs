@@ -13,12 +13,11 @@ pub use wayland_sys::{
     server::{self, WAYLAND_SERVER_HANDLE}, uid_t
 };
 
-pub use self::generated::*;
+pub use self::generated::root::*;
+pub use self::generated::protocols as protocols;
 
 #[allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
 mod generated {
-    use libc;
-
     include!("gen.rs");
 
     // XXX: If you add another protocols, take a look at wayland_protocol! macro
@@ -92,9 +91,9 @@ mod generated {
 }
 
 #[cfg(feature = "unstable")]
-pub type wlr_output_events = self::generated::wlr_output__bindgen_ty_1;
+pub type wlr_output_events = self::generated::root::wlr_output__bindgen_ty_1;
 #[cfg(feature = "unstable")]
-pub type wlr_input_device_pointer = self::generated::wlr_input_device__bindgen_ty_1;
+pub type wlr_input_device_pointer = self::generated::root::wlr_input_device__bindgen_ty_1;
 
 pub trait TransformOutput {
     fn invert(self) -> Self;
@@ -102,16 +101,16 @@ pub trait TransformOutput {
 }
 
 #[cfg(feature = "unstable")]
-impl TransformOutput for wl_output_transform {
+impl TransformOutput for generated::root::wl_output_transform {
     /// Returns the transform that, when composed with `self`, gives
     /// `WL_OUTPUT_TRANSFORM_NORMAL`.
     fn invert(self) -> Self {
-        unsafe { wlr_output_transform_invert(self) }
+        unsafe { generated::root::wlr_output_transform_invert(self) }
     }
 
     /// Returns a transform that, when applied, has the same effect as applying
     /// sequentially `self` and `other`.
     fn compose(self, other: Self) -> Self {
-        unsafe { wlr_output_transform_compose(self, other) }
+        unsafe { generated::root::wlr_output_transform_compose(self, other) }
     }
 }
