@@ -8,12 +8,18 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs, io};
 use bindgen::EnumVariation;
+use std::process::exit;
 
 fn main() {
     println!("cargo:rerun-if-changed=src/gen.rs");
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-changed=src/wlroots.h");
     println!("cargo:rerun-if-changed=wlroots");
+
+    find_pkg_config_clang();
+
+    #[cfg(feature = "unstable")]
+    package_error_unstable();
 
     meson();
     let protocol_header_path =
@@ -80,7 +86,7 @@ fn main() {
         )
     }
     
-    let generated = builder.generate().unwrap();
+    let generated = builder.generate().expect(package_error_common_unstable().as_str());
 
     println!("cargo:rustc-link-lib=dylib=X11");
     println!("cargo:rustc-link-lib=dylib=X11-xcb");
@@ -159,6 +165,8 @@ fn meson() {
         );
     }
 
+    package_error_static();
+
     match meson_config_status
     {
         None | Some(Ok(_)) => meson::build("wlroots", build_path_str),
@@ -178,7 +186,8 @@ fn generate_protocol_headers() -> io::Result<PathBuf> {
     let output_dir_str = env::var("OUT_DIR").unwrap();
     let out_path: PathBuf = format!("{}/wayland-protocols", output_dir_str).into();
     fs::create_dir(&out_path).ok();
-    let protocols_prefix = pkg_config::get_variable("wayland-protocols", "prefix").unwrap();
+    let protocols_prefix = pkg_config::get_variable("wayland-protocols", "prefix")
+        .expect(package_error("wayland-protocols".to_string()).as_ref());
     let protocols = fs::read_dir(format!("{}/share/wayland-protocols/stable", protocols_prefix))?.chain(
         fs::read_dir(format!("{}/share/wayland-protocols/unstable", protocols_prefix))?
     );
@@ -210,13 +219,21 @@ fn generate_protocols() {
     let output_dir = Path::new(&output_dir_str);
 
     let protocols = &[
-        ("./wlroots/protocol/server-decoration.xml", "server_decoration"),
-        (
-            "./wlroots/protocol/wlr-gamma-control-unstable-v1.xml",
-            "gamma_control"
-        ),
-        ("./wlroots/protocol/wlr-screencopy-unstable-v1.xml", "screencopy"),
-        ("./wlroots/protocol/idle.xml", "idle")
+        ("./wlroots/protocol/server-decoration.xml","server_decoration",),
+        ("./wlroots/protocol/wlr-gamma-control-unstable-v1.xml","gamma_control",),
+        ("./wlroots/protocol/wlr-screencopy-unstable-v1.xml","screencopy",),
+        ("./wlroots/protocol/gtk-primary-selection.xml", "gtk_primary_selection",),
+        ("./wlroots/protocol/input-method-unstable-v2.xml", "input_method",),
+        ("./wlroots/protocol/virtual-keyboard-unstable-v1.xml", "virtual_keyboard",),
+        ("./wlroots/protocol/wlr-data-control-unstable-v1.xml", "data_control",),
+        ("./wlroots/protocol/wlr-export-dmabuf-unstable-v1.xml", "export_dmabuf",),
+        ("./wlroots/protocol/wlr-foreign-toplevel-management-unstable-v1.xml", "foreign_toplevel_management",),
+        ("./wlroots/protocol/wlr-input-inhibitor-unstable-v1.xml", "input_inhibitor",),
+        ("./wlroots/protocol/wlr-layer-shell-unstable-v1.xml", "layer_shell",),
+        ("./wlroots/protocol/wlr-output-management-unstable-v1.xml", "output_management",),
+        ("./wlroots/protocol/wlr-output-power-management-unstable-v1.xml", "output_power_management",),
+        ("./wlroots/protocol/wlr-virtual-pointer-unstable-v1.xml", "virtual_pointer",),
+        ("./wlroots/protocol/idle.xml", "idle"),
     ];
 
     for protocol in protocols {
@@ -229,11 +246,6 @@ fn generate_protocols() {
             protocol.0,
             output_dir.join(format!("{}_client_api.rs", protocol.1)),
             wayland_scanner::Side::Client
-        );
-        wayland_scanner::generate_code(
-            protocol.0,
-            output_dir.join(format!("{}_interfaces.rs", protocol.1)),
-            wayland_scanner::Side::Server
         );
     }
 }
@@ -251,4 +263,321 @@ fn link_optional_libs() {
     if pkg_config::probe_library("xcb-errors").is_ok() {
         println!("cargo:rustc-link-lib=dylib=xcb-errors");
     }
+}
+
+
+/// prints helpful package installation instructions or error to the user.
+fn package_error(command: String) -> String {
+    if check_version("wayland-protocols","--version","0",true)
+        && "wayland-protocols" == command
+    {
+        println!("wayland-protocols found");
+    } else {
+        println!("WRONG version of wayland-protocols or not installed.");
+
+        println!("\nInstallation instructions, install with packet manager or:");
+        println!("git clone https://github.com/wayland-project/wayland-protocols.git");
+    }
+
+    return "".to_string();
+}
+
+fn package_error_common_unstable() -> String {
+
+    if cfg!(feature = "unstable") {
+        println!("Are the following unstable dependencies installed?");
+        println!("libwayland-dev");
+        println!("libudev-dev");
+        println!("libgles2-mesa-dev");
+        println!("libpixman-1-dev");
+        println!("llvm");
+        println!("libxkbcommon-dev");
+        println!("libxkbcommon-dev");
+        println!("libinput-dev");
+        println!("libinput-bin");
+    }
+
+    return "".to_string();
+}
+
+
+// STATIC BUILD CHECK
+#[cfg(feature = "static")]
+fn package_error_static() {
+    if check_version("pkg-config","--version","0",false)
+    {
+        println!("pkg-config found");
+    } else {
+        println!("WRONG version of pkg-config or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager");
+        println!("Installation cannot rely on Cargo pkg-config ");
+        exit(2);
+    }
+
+    if check_version("ninja","--version","1.9.0",true)
+    {
+        println!("ninja found");
+    } else {
+        println!("WRONG version of ninja or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager or python3-pip if available");
+        exit(2);
+    }
+
+    if check_version("meson","--version","0.54.0",true)
+    {
+        println!("meson found");
+    } else {
+        println!("WRONG version of meson or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager or python3-pip if available");
+        println!("STATIC installation cannot rely on Cargo meson ");
+        exit(2);
+    }
+
+    if check_version("cmake","--version","3.0",true)
+    {
+        println!("cmake found");
+    } else {
+        println!("WRONG version of cmake or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager or if available");
+        println!("STATIC installation cannot usually rely on Cargo cmake ");
+    }
+
+    if check_version("clang","--version","6.0",true)
+    {
+        println!("clang found");
+    } else {
+        println!("WRONG version of clang or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager");
+        println!("STATIC installation cannot rely on Cargo clang ");
+        exit(2);
+    }
+
+    if check_version("pip3","--version","9.0",true)
+    {
+        println!("pip3 found");
+    } else {
+        println!("WRONG version of pip3 or not installed on system.");
+        println!("\nInstallation instructions, install with packet manager");
+    }
+
+    if check_version("xml2-config","--version","0.0",true)
+    {
+        println!("libxml2-dev found");
+    } else {
+        println!("WRONG version of libxml2-dev or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager");
+        exit(2);
+    }
+
+    if check_version("dot","-V","0.0",true)
+    {
+        println!("graphviz found");
+    } else {
+        println!("WRONG version of graphviz or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager");
+    }
+
+
+    if check_version("wayland-scanner","--version","0.0",false)
+    {
+        println!("libwayland-bin found");
+    } else {
+        println!("WRONG version of libwayland-bin or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager");
+        exit(2);
+    }
+
+    println!("other dependencies needed: ");
+    println!("libxml2: ");
+    println!("libwayland-bin: ");
+    println!("wayland-protocols ");
+    println!("libffi-dev: ");
+    println!("expat ");
+    println!("graphviz: ");
+    println!("doxygen: ");
+    println!("llvm ");
+    println!("libwayland-bin: ")
+
+}
+
+/// Checks if a specific package is installed in system PATH or pkg-config
+/// if no min_version is needed use "0" as arg.
+fn check_version(command: &str, arg: &str, min_version: &str, first_check: bool) -> bool {
+
+    if first_check {
+        if let Ok(_lib_details) = pkg_config::Config::new()
+            .atleast_version(&min_version.clone())
+            .probe(&command.clone())
+        {
+            if min_version == "0".to_string() {
+                println!("{:?} was found located in pkg-config", command);
+            } else {
+                println!(
+                    "{:?} min version {:?} was not found located in pkg-config",
+                    command, min_version
+                );
+            }
+
+            return true;
+        } else {
+            if min_version == "0".to_string() {
+                println!("{:?} was not found located in pkg-config", command);
+            } else {
+                println!(
+                    "{:?} min version {:?} was found located in pkg-config",
+                    command, min_version
+                );
+            }
+
+            println!("if it is installed, try export PKG_CONFIG_PATH=/usr/lib/PATH_TO_PC/lib/:$PKG_CONFIG_PATH where .pc file is located");
+        }
+    }
+    let minvec = min_version
+        .split(|c| c == ' ' || c == '.')
+        .filter_map(|s| s.parse::<i32>().ok())
+        .collect::<Vec<_>>();
+
+    return if !is_in_path("PATH".to_string(), command) {
+        println!("\n{:?} was not found in PATH, try export it by:", command);
+        println!("export PATH=/usr/PATH_TO_BIN/bin/:$PATH \n");
+        false
+    } else {
+        let output = Command::new(command.clone())
+            .arg(arg)
+            .output()
+            .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
+
+        if output.status.success() {
+            let mut command_output = String::from_utf8_lossy(&output.stdout);
+
+            let mut command_vector = command_output
+                .split(|c| c == ' ' || c == '.')
+                .filter_map(|s| s.parse::<i32>().ok())
+                .collect::<Vec<_>>();
+
+            if command_vector.is_empty() {
+                command_output = String::from_utf8_lossy(&output.stderr);
+                command_vector = command_output
+                    .split(|c| c == ' ' || c == '.')
+                    .filter_map(|s| s.parse::<i32>().ok())
+                    .collect::<Vec<_>>();
+                if command_vector.is_empty() {
+                    println!("Unable to get version number with --version");
+                    return false;
+                }
+            }
+
+            while command_vector.len() > minvec.len() {
+                command_vector.pop();
+            }
+
+            while minvec.len() > command_vector.len() {
+                command_vector.push(0);
+            }
+
+            let mut counter_compare = 1;
+            for (comval, minval) in command_vector.iter().zip(minvec.iter()) {
+                if counter_compare < minvec.len() {
+                    if comval > minval {
+                        println!("local installation of {:?} {:?} >= version {:?} was found", command, command_vector, min_version);
+                        return true;
+                    }
+                    if comval < minval {
+                        return false;
+                    }
+                } else {
+                    return if comval >= minval { true } else { false };
+                }
+                counter_compare += 1;
+            }
+        } else {
+            let s = String::from_utf8_lossy(&output.stderr);
+            print!("rustc failed and stderr was:\n{}", s);
+        }
+
+        false
+    };
+}
+
+fn find_pkg_config_clang(){
+    if check_version("pkg-config","--version","0",false)
+    {
+        println!("pkg-config found");
+    } else {
+        println!("WRONG version of pkg-config or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager");
+        println!("Installation cannot rely on Cargo pkg-config ");
+        exit(2);
+    }
+
+    if check_version("clang","--version","0.0",true)
+    {
+        println!("clang found");
+    } else {
+        println!("WRONG version of clang or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager");
+        println!("STATIC installation cannot rely on Cargo clang ");
+        exit(2);
+    }
+
+}
+
+
+
+#[cfg(feature = "unstable")]
+fn package_error_unstable() {
+
+    find_pkg_config_clang();
+
+    if check_version("clang","--version","0",true)
+    {
+        println!("clang found");
+    } else {
+        println!("WRONG version of clang or not installed on system.");
+
+        println!("\nInstallation instructions, install with packet manager");
+        println!("STATIC installation cannot rely on Cargo clang ");
+        exit(2);
+    }
+}
+
+///help method to locate package in PATH or other env variable
+fn is_in_path(path_dir: String, command: &str) -> bool {
+    //                      PATH
+    match env::var_os(path_dir) {
+        Some(paths) => {
+            for path in env::split_paths(&paths) {
+                let path_hidden = path.to_str().expect("Error reading directory");
+                if !path_hidden.contains("/.") {
+                    for entry in fs::read_dir(path).expect("Error reading directory") {
+                        let entry = entry.expect("Could not read entry in directory");
+                        let file_name = entry
+                            .path()
+                            .file_name()
+                            .unwrap()
+                            .to_string_lossy()
+                            .into_owned();
+
+                        if file_name == command.to_string() {
+                            println!("var {:?} was found in {:?}", command, entry);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        None => println!("directory is not defined."),
+    }
+
+    return false;
 }
