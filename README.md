@@ -1,30 +1,16 @@
-# wlroots-rs
-[![Crates.io](https://img.shields.io/crates/v/wlroots.svg)](https://crates.io/crates/wlroots)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/way-cooler/wlroots-rs/)
+## wlroots-rs
 
-**This is no longer maintained.** As an alternative consider
-[smithay](https://github.com/Smithay/smithay).
+A fork of wlroots-rs.
 
-Safe Rust bindings for [wlroots](https://github.com/SirCmpwn/wlroots).
+### Changes
 
-This library is currently tracking the wlroots version for its minor version. Patch versions are wlroots-rs specific.
+The following changes have been merged into master:
 
-# [Documentation](http://way-cooler.org/docs/wlroots/index.html)
-
-# Building
-To build wlroots-rs you have to init the wlroots submodule first and have all wlroots dependencies.
-
-    git submodule update --init
-    cargo build
-
-If you want to compile against wlroots statically, add the `"static"` flag.
-
-If you want use unstable wlroots features then add the `"unstable"` flag.
-
-# Examples
-See [the examples directory](https://github.com/swaywm/wlroots-rs/tree/master/examples) for basic examples.
-
-You can run an example using the following command:
-```bash
-cargo run --example <name of the example>
-```
+- Exposed (updated to reflect) all wlr/protocols currently available [here](https://github.com/swaywm/wlroots/tree/master/protocol)
+- Exposed (updated to reflect) all wlr/types currently available [here](https://github.com/swaywm/wlroots/tree/master/types)
+- Updated all dependencies of wlroots-sys to the current versions (including the library suite “wayland-rs” to >=0.25.*)
+- Fixed a bug where wlroots-sys would not compile. The multi-crate issue is described [here](https://users.rust-lang.org/t/unable-to-compile-syntex-syntax-using-rust-1-41/37710).
+- Fixed a bug where the wlroots-sys crate would recompile every time you compile another crate that depends on wlroots-sys
+- Added informative dependency checks as well as more constructive error messages for pkg-config when building default, static and unstable, for a smoother build process.
+- Fixed errors with static build with new version of wlroots.
+- Compatibility changes for wlroots-rs
